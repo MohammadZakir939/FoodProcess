@@ -11,7 +11,7 @@ export default function Home() {
   const [foods, setFoods] = useState([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8001/api/foods")
+    fetch("https://foodprocess.onrender.com/api/foods")
       .then((res) => res.json())
       .then((data) => setFoods(data))
       .catch((err) => console.error(err));
