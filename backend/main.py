@@ -2,11 +2,43 @@ from fastapi import FastAPI, Query, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-
+from passlib.context import CryptContext
+from models import User
+from fastapi import HTTPException
 from database import get_db
-from models import Inventory
+from models import Inventory, User, Base
+from database import engine
+from jose import jwt
+from datetime import datetime, timedelta
 
 app = FastAPI()
+Base.metadata.create_all(bind=engine)
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto"
+)
+
+SECRET_KEY = "change_this_to_a_long_random_secret_key"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+
+    expire = datetime.utcnow() + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(
+        to_encode,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return encoded_jwt
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,6 +58,15 @@ class Food(BaseModel):
     category: str
     quantity: int
 
+class RegisterUser(BaseModel):
+    username: str
+    email: str
+    password: str
+
+
+class LoginUser(BaseModel):
+    email: str
+    password: str
 
 food_items = [
     {
@@ -148,3 +189,56 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Food item deleted successfully"}
+
+@app.post("/register")
+def register(user: RegisterUser, db: Session = Depends(get_db)):
+
+    # Check if email already exists
+    existing_user = db.query(User).filter(User.email == user.email).first()
+
+    if existing_user:
+        return {"message": "Email already registered"}
+
+    # Hash the password
+    hashed_password = pwd_context.hash(user.password)
+
+    # Create new user
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        password=hashed_password
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {
+        "message": "User registered successfully",
+        "username": new_user.username,
+        "email": new_user.email
+    }
+
+@app.post("/login")
+def login(user: LoginUser, db: Session = Depends(get_db)):
+
+    db_user = db.query(User).filter(User.email == user.email).first()
+
+    if not db_user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not pwd_context.verify(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_access_token(
+        {
+            "sub": db_user.email
+        }
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "username": db_user.username,
+        "email": db_user.email
+    }

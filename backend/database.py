@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 import os
 
@@ -12,6 +12,7 @@ print("DATABASE_URL loaded:", DATABASE_URL is not None)
 
 # Create database engine
 engine = create_engine(DATABASE_URL)
+Base = declarative_base()
 
 # Create session
 SessionLocal = sessionmaker(

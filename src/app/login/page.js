@@ -12,20 +12,49 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = () => {
-    setError("");
+  const handleLogin = async () => {
+  setError("");
 
-    if (!email || !password) {
-      setError("Please enter your email and password.");
+  if (!email || !password) {
+    setError("Please enter your email and password.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await fetch(
+      "https://foodprocess.onrender.com/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.detail || "Login failed");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("username", data.username);
 
-    setTimeout(() => {
-      window.location.href = "/dashboard";
-    }, 1500);
-  };
+    window.location.href = "/dashboard";
+  } catch (err) {
+    setError("Unable to connect to the server.");
+  }
+
+  setLoading(false);
+};
 
   return (
     <>
