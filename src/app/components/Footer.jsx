@@ -104,7 +104,7 @@ export default function Footer() {
                 <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
 
                 <span className="text-gray-600">
-                  Backend Integration Pending
+                  Backend Integration Completed
                 </span>
 
               </div>

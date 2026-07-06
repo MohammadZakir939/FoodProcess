@@ -205,7 +205,7 @@ export default function Login() {
                 </p>
 
                 <p className="mt-1 text-sm text-gray-600">
-                  This interface is ready for FastAPI JWT authentication integration.
+                  This interface is ready with FastAPI JWT authentication integration.
                 </p>
 
               </div>

@@ -66,23 +66,8 @@ export default function Hero() {
 
             <div className="mt-16 grid grid-cols-3 gap-8">
 
-              <div>
-                <h2 className="text-3xl font-bold text-green-600">
-                  1200+
-                </h2>
-                <p className="text-gray-500 mt-2">
-                  Products
-                </p>
-              </div>
-
-              <div>
-                <h2 className="text-3xl font-bold text-green-600">
-                  99%
-                </h2>
-                <p className="text-gray-500 mt-2">
-                  Accuracy
-                </p>
-              </div>
+             
+            
 
               <div>
                 <h2 className="text-3xl font-bold text-green-600">
@@ -109,13 +94,6 @@ export default function Hero() {
                 Inventory Status
               </p>
 
-              <h3 className="text-3xl font-bold mt-2">
-                1,245
-              </h3>
-
-              <p className="text-green-600 mt-2">
-                ↑ 12% this week
-              </p>
 
             </div>
 
@@ -185,9 +163,7 @@ export default function Hero() {
             Orders
           </p>
 
-          <h3 className="text-2xl font-bold mt-2">
-            87
-          </h3>
+         
 
         </div>
 
@@ -197,9 +173,7 @@ export default function Hero() {
             Production
           </p>
 
-          <h3 className="text-2xl font-bold mt-2">
-            94%
-          </h3>
+          
 
         </div>
 
