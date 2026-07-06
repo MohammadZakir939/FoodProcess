@@ -1,7 +1,34 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("username");
+
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setUsername(user || "User");
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
+        Loading Dashboard...
+      </div>
+    );
+  }
+
   return (
     <>
       <Navbar />
@@ -19,6 +46,10 @@ export default function Dashboard() {
           <h1 className="mt-6 text-5xl font-black text-gray-900">
             FoodProcess Dashboard
           </h1>
+
+          <p className="mt-4 text-xl font-medium text-green-700">
+            Welcome back, {username} 👋
+          </p>
 
           <p className="mt-5 max-w-3xl text-lg text-gray-600 leading-8">
             Access inventory management, production tracking, supplier
@@ -170,8 +201,8 @@ export default function Dashboard() {
                   Authentication
                 </h3>
 
-                <p className="text-sm text-gray-600 mt-2">
-                  UI Ready
+                <p className="text-sm text-green-700 mt-2 font-semibold">
+                  Active ✅
                 </p>
 
               </div>
