@@ -10,6 +10,9 @@ from models import Inventory, User, Base
 from database import engine
 from jose import jwt
 from datetime import datetime, timedelta
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
@@ -67,6 +70,9 @@ class RegisterUser(BaseModel):
 class LoginUser(BaseModel):
     email: str
     password: str
+
+class AIRequest(BaseModel):
+    question: str
 
 food_items = [
     {
@@ -241,4 +247,38 @@ def login(user: LoginUser, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "username": db_user.username,
         "email": db_user.email
+    }
+
+from datetime import datetime
+
+@app.get("/ai-insights")
+def get_ai_insights(db: Session = Depends(get_db)):
+
+    items = db.query(Inventory).all()
+
+    insights = []
+
+    if not items:
+        return {"insights": ["No inventory data available."]}
+
+    total_items = len(items)
+
+    insights.append(f"Total inventory items: {total_items}")
+
+    low_stock = [item.name for item in items if item.quantity < 10]
+
+    if low_stock:
+        insights.append(
+            "Low stock items: " + ", ".join(low_stock)
+        )
+
+    high_stock = [item.name for item in items if item.quantity > 100]
+
+    if high_stock:
+        insights.append(
+            "High stock items: " + ", ".join(high_stock)
+        )
+
+    return {
+        "insights": insights
     }

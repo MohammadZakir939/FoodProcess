@@ -1,36 +1,44 @@
+import Link from "next/link";
+
 export default function Features() {
   const features = [
-    {
-      title: "Inventory Management",
-      description:
-        "Track raw materials and finished products with a centralized inventory system designed for food processing operations.",
-    },
-    {
-      title: "Production Tracking",
-      description:
-        "Monitor production batches, processing stages, and operational workflows from a single dashboard.",
-    },
-    {
-      title: "Supplier Management",
-      description:
-        "Maintain supplier information, procurement records, and vendor relationships in one place.",
-    },
-    {
-      title: "Quality Control",
-      description:
-        "Record inspections and quality assurance activities to support consistent manufacturing standards.",
-    },
-    {
-      title: "AI Insights",
-      description:
-        "Generate operational recommendations based on production and inventory data after backend integration.",
-    },
-    {
-      title: "Business Reports",
-      description:
-        "Access reports that summarize operational activities and support data-driven decision making.",
-    },
-  ];
+  {
+    title: "Inventory Management",
+    tab: "inventory",
+    description:
+      "Track raw materials and finished products with a centralized inventory system designed for food processing operations.",
+  },
+  {
+    title: "Production Tracking",
+    tab: "production",
+    description:
+      "Monitor production batches, processing stages, and operational workflows from a single dashboard.",
+  },
+  {
+    title: "Supplier Management",
+    tab: "suppliers",
+    description:
+      "Maintain supplier information, procurement records, and vendor relationships in one place.",
+  },
+  {
+    title: "Quality Control",
+    tab: "qc",
+    description:
+      "Record inspections and quality assurance activities to support consistent manufacturing standards.",
+  },
+  {
+    title: "AI Insights",
+    tab: "ai",
+    description:
+      "Generate operational recommendations based on production and inventory data after backend integration.",
+  },
+  {
+    title: "Business Reports",
+    tab: "reports",
+    description:
+      "Access reports that summarize operational activities and support data-driven decision making.",
+  },
+];
 
   return (
     <section className="bg-white py-24">
@@ -57,8 +65,12 @@ export default function Features() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-16">
 
-          {features.map((feature) => (
-            <div
+         {features.map((feature) => (
+  <Link
+    key={feature.title}
+    href={`/dashboard?tab=${feature.tab}`}
+  >
+    <div
               key={feature.title}
               className="rounded-3xl border bg-white p-8 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
             >
@@ -74,7 +86,8 @@ export default function Features() {
                 {feature.description}
               </p>
             </div>
-          ))}
+</Link>
+))}
 
         </div>
 
