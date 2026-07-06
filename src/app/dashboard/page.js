@@ -9,31 +9,80 @@ export default function Dashboard() {
   const [username, setUsername] = useState("");
   const [foods, setFoods] = useState([]);
 
- useEffect(() => {
-  const loadDashboard = async () => {
-    const token = localStorage.getItem("token");
-    const user = localStorage.getItem("username");
+  // FORM STATE
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [quantity, setQuantity] = useState("");
 
-    if (!token) {
-      window.location.href = "/login";
-      return;
-    }
+  useEffect(() => {
+    const loadDashboard = async () => {
+      const token = localStorage.getItem("token");
+      const user = localStorage.getItem("username");
 
-    setUsername(user || "User");
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
 
+      setUsername(user || "User");
+
+      await fetchFoods();
+
+      setLoading(false);
+    };
+
+    loadDashboard();
+  }, []);
+
+  // FETCH FOODS
+  const fetchFoods = async () => {
     try {
       const response = await fetch("https://foodprocess.onrender.com/api/foods");
       const data = await response.json();
       setFoods(data);
     } catch (error) {
-      console.error(error);
+      console.error("Fetch error:", error);
     }
-
-    setLoading(false);
   };
 
-  loadDashboard();
-}, []);
+  // ADD FOOD (POST)
+  const addFood = async () => {
+    const token = localStorage.getItem("token");
+
+    try {
+      const response = await fetch("https://foodprocess.onrender.com/api/foods", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name,
+          category,
+          quantity: Number(quantity),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add item");
+      }
+
+      // refresh list
+      await fetchFoods();
+
+      // reset form
+      setName("");
+      setCategory("");
+      setQuantity("");
+      setShowForm(false);
+
+      alert("Item added successfully!");
+    } catch (error) {
+      console.error(error);
+      alert("Error adding item");
+    }
+  };
 
   if (loading) {
     return (
@@ -51,8 +100,7 @@ export default function Dashboard() {
 
         <section className="max-w-7xl mx-auto px-8 py-16">
 
-          {/* Header */}
-
+          {/* HEADER */}
           <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
             Operations Workspace
           </span>
@@ -65,226 +113,95 @@ export default function Dashboard() {
             Welcome back, {username} 👋
           </p>
 
-          <p className="mt-5 max-w-3xl text-lg text-gray-600 leading-8">
-            Access inventory management, production tracking, supplier
-            management, quality control and AI-powered operational insights
-            from one centralized workspace.
-          </p>
+          {/* INVENTORY */}
+          <div className="bg-white rounded-3xl border shadow-sm p-8 mt-14">
 
-          {/* Main Grid */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Inventory</h2>
 
-          <div className="grid lg:grid-cols-2 gap-8 mt-14">
-
-            {/* Inventory */}
-
-            <div className="bg-white rounded-3xl border shadow-sm p-8">
-
-              <div className="flex justify-between items-center">
-
-                <h2 className="text-2xl font-bold">
-                  Inventory
-                </h2>
-
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm">
-                  Empty
-                </span>
-
-              </div>
-
-             {foods.length === 0 ? (
-  <p className="mt-6 text-gray-600">
-    No inventory records found.
-  </p>
-) : (
-  <div className="mt-6 space-y-4">
-    {foods.map((food) => (
-      <div
-        key={food.id}
-        className="rounded-xl border p-4 bg-gray-50"
-      >
-        <h3 className="font-semibold text-lg">
-          {food.name}
-        </h3>
-
-        <p className="text-gray-600">
-          Category: {food.category}
-        </p>
-
-        <p className="text-gray-600">
-          Quantity: {food.quantity}
-        </p>
-      </div>
-    ))}
-  </div>
-)}
-
-<button className="mt-8 rounded-xl bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700 transition">
-  Add Inventory
-</button>
-
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-sm">
+                {foods.length} items
+              </span>
             </div>
 
-            {/* Production */}
-
-            <div className="bg-white rounded-3xl border shadow-sm p-8">
-
-              <div className="flex justify-between items-center">
-
-                <h2 className="text-2xl font-bold">
-                  Production
-                </h2>
-
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm">
-                  Empty
-                </span>
-
-              </div>
-
+            {/* LIST */}
+            {foods.length === 0 ? (
               <p className="mt-6 text-gray-600">
-                Production batches have not been created.
-                Start a batch to monitor manufacturing progress.
+                No inventory records found.
               </p>
-
-              <button className="mt-8 rounded-xl bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700 transition">
-                Create Batch
-              </button>
-
-            </div>
-
-            {/* Suppliers */}
-
-            <div className="bg-white rounded-3xl border shadow-sm p-8">
-
-              <div className="flex justify-between items-center">
-
-                <h2 className="text-2xl font-bold">
-                  Suppliers
-                </h2>
-
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm">
-                  Empty
-                </span>
-
+            ) : (
+              <div className="mt-6 space-y-4">
+                {foods.map((food) => (
+                  <div key={food.id} className="rounded-xl border p-4 bg-gray-50">
+                    <h3 className="font-semibold text-lg">{food.name}</h3>
+                    <p className="text-gray-600">Category: {food.category}</p>
+                    <p className="text-gray-600">Quantity: {food.quantity}</p>
+                  </div>
+                ))}
               </div>
+            )}
 
-              <p className="mt-6 text-gray-600">
-                Supplier information has not been added.
-                Register suppliers to manage procurement records.
-              </p>
+            {/* BUTTON */}
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-6 rounded-xl bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700"
+            >
+              Add Inventory
+            </button>
 
-              <button className="mt-8 rounded-xl bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700 transition">
-                Add Supplier
-              </button>
+            {/* FORM */}
+            {showForm && (
+              <div className="mt-6 border rounded-xl p-4 bg-white shadow">
 
-            </div>
-
-            {/* AI Assistant */}
-
-            <div className="bg-white rounded-3xl border shadow-sm p-8">
-
-              <div className="flex justify-between items-center">
-
-                <h2 className="text-2xl font-bold">
-                  AI Insights
-                </h2>
-
-                <span className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">
-                  Ready
-                </span>
-
-              </div>
-
-              <p className="mt-6 text-gray-600">
-                AI recommendations will appear after inventory,
-                production and supplier data become available.
-              </p>
-
-              <div className="mt-8 rounded-xl border border-dashed border-green-300 bg-green-50 p-5">
-
-                <p className="font-semibold text-green-700">
-                  Example Insight
-                </p>
-
-                <p className="mt-2 text-sm text-gray-600">
-                  Connect operational data to receive inventory forecasts,
-                  supplier recommendations and production optimization
-                  suggestions.
-                </p>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* System Status */}
-
-          <div className="mt-10 rounded-3xl bg-white border shadow-sm p-8">
-
-            <h2 className="text-2xl font-bold">
-              Platform Status
-            </h2>
-
-            <p className="text-gray-500 mt-2">
-              Current application modules.
-            </p>
-
-            <div className="grid md:grid-cols-4 gap-6 mt-8">
-
-              <div className="rounded-xl bg-green-50 p-5">
-
-                <h3 className="font-semibold">
-                  Authentication
+                <h3 className="text-lg font-semibold mb-3">
+                  Add New Item
                 </h3>
 
-                <p className="text-sm text-green-700 mt-2 font-semibold">
-                  Active ✅
-                </p>
+                <input
+                  type="text"
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="border p-2 w-full mb-2 rounded"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="border p-2 w-full mb-2 rounded"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="border p-2 w-full mb-2 rounded"
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={addFood}
+                    className="bg-green-600 text-white px-4 py-2 rounded"
+                  >
+                    Save
+                  </button>
+
+                  <button
+                    onClick={() => setShowForm(false)}
+                    className="bg-gray-400 text-white px-4 py-2 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
 
               </div>
-
-              <div className="rounded-xl bg-green-50 p-5">
-
-                <h3 className="font-semibold">
-                  Inventory Module
-                </h3>
-
-                <p className="text-sm text-gray-600 mt-2">
-                  Ready for Backend Integration
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-green-50 p-5">
-
-                <h3 className="font-semibold">
-                  Production Module
-                </h3>
-
-                <p className="text-sm text-gray-600 mt-2">
-                  Ready for Backend Integration
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-green-50 p-5">
-
-                <h3 className="font-semibold">
-                  AI Assistant
-                </h3>
-
-                <p className="text-sm text-gray-600 mt-2">
-                  Awaiting Operational Data
-                </p>
-
-              </div>
-
-            </div>
-
+            )}
           </div>
 
         </section>
-
       </main>
 
       <Footer />
