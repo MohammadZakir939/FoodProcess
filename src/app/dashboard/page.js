@@ -7,8 +7,10 @@ import Footer from "../components/Footer";
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("");
+  const [foods, setFoods] = useState([]);
 
-  useEffect(() => {
+ useEffect(() => {
+  const loadDashboard = async () => {
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("username");
 
@@ -18,8 +20,20 @@ export default function Dashboard() {
     }
 
     setUsername(user || "User");
+
+    try {
+      const response = await fetch("https://foodprocess.onrender.com/api/foods");
+      const data = await response.json();
+      setFoods(data);
+    } catch (error) {
+      console.error(error);
+    }
+
     setLoading(false);
-  }, []);
+  };
+
+  loadDashboard();
+}, []);
 
   if (loading) {
     return (
@@ -77,14 +91,36 @@ export default function Dashboard() {
 
               </div>
 
-              <p className="mt-6 text-gray-600">
-                No inventory records have been added yet.
-                Products will appear here after they are created.
-              </p>
+             {foods.length === 0 ? (
+  <p className="mt-6 text-gray-600">
+    No inventory records found.
+  </p>
+) : (
+  <div className="mt-6 space-y-4">
+    {foods.map((food) => (
+      <div
+        key={food.id}
+        className="rounded-xl border p-4 bg-gray-50"
+      >
+        <h3 className="font-semibold text-lg">
+          {food.name}
+        </h3>
 
-              <button className="mt-8 rounded-xl bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700 transition">
-                Add Inventory
-              </button>
+        <p className="text-gray-600">
+          Category: {food.category}
+        </p>
+
+        <p className="text-gray-600">
+          Quantity: {food.quantity}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
+
+<button className="mt-8 rounded-xl bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700 transition">
+  Add Inventory
+</button>
 
             </div>
 

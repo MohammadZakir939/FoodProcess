@@ -93,10 +93,12 @@ export default function Navbar() {
                 Sign In
               </Link>
 
-              <button className="rounded-xl bg-green-600 px-5 py-3 text-white font-semibold shadow-lg hover:bg-green-700 transition">
-                Get Started
-              </button>
-            </>
+              <Link
+  href={loggedIn ? "/dashboard" : "/register"}
+  className="rounded-xl bg-green-600 px-5 py-3 text-white font-semibold shadow-lg hover:bg-green-700 transition"
+>
+  Get Started
+</Link>
           )}
         </div>
 
