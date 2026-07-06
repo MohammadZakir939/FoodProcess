@@ -48,28 +48,47 @@ export default function Dashboard() {
 
   // ADD FOOD (POST)
   const addFood = async () => {
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
-    try {
-      const response = await fetch("https://foodprocess.onrender.com/api/foods", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name,
-          category,
-          quantity: Number(quantity),
-        }),
-      });
+  try {
+    const response = await fetch("https://foodprocess.onrender.com/api/foods", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name,
+        category,
+        quantity: Number(quantity),
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Failed to add item");
-      }
+    if (!response.ok) {
+      throw new Error("Failed to add item");
+    }
 
-      // refresh list
-      await fetchFoods();
+    const newItem = await response.json();
+
+    // ✅ instant UI update (no refetch needed)
+    setFoods((prev) => [...prev, newItem]);
+
+    // reset form
+    setName("");
+    setCategory("");
+    setQuantity("");
+    setShowForm(false);
+
+    alert("Item added successfully!");
+  } catch (error) {
+    console.error(error);
+    alert("Error adding item");
+  }
+};
+
+     const newItem = await response.json();
+
+setFoods((prev) => [...prev, newItem]);
 
       // reset form
       setName("");
