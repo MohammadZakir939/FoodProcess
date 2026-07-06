@@ -61,12 +61,14 @@ export default function Navbar() {
             About
           </Link>
 
-          <Link
-            href="/dashboard"
-            className="text-gray-600 hover:text-green-600 transition font-medium"
-          >
-            Dashboard
-          </Link>
+          {loggedIn && (
+            <Link
+              href="/dashboard"
+              className="text-gray-600 hover:text-green-600 transition font-medium"
+            >
+              Dashboard
+            </Link>
+          )}
         </div>
 
         {/* Right Side */}
@@ -79,7 +81,7 @@ export default function Navbar() {
 
               <button
                 onClick={handleLogout}
-                className="rounded-xl bg-red-500 px-5 py-2 text-white hover:bg-red-600 transition"
+                className="rounded-xl bg-red-500 px-5 py-2 text-white font-semibold hover:bg-red-600 transition"
               >
                 Logout
               </button>
@@ -94,11 +96,12 @@ export default function Navbar() {
               </Link>
 
               <Link
-  href={loggedIn ? "/dashboard" : "/register"}
-  className="rounded-xl bg-green-600 px-5 py-3 text-white font-semibold shadow-lg hover:bg-green-700 transition"
->
-  Get Started
-</Link>
+                href="/register"
+                className="rounded-xl bg-green-600 px-5 py-3 text-white font-semibold shadow-lg hover:bg-green-700 transition"
+              >
+                Get Started
+              </Link>
+            </>
           )}
         </div>
 
