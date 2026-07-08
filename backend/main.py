@@ -1,31 +1,57 @@
-from fastapi import FastAPI, Query, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, Query, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from models import User
-from fastapi import HTTPException
-from database import get_db
-from models import Inventory, User, Base
-from database import engine
 from jose import jwt
 from datetime import datetime, timedelta
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import os
+from openai import OpenAI
 
+from database import get_db, engine
+from models import Inventory, User, Base
 
+# -----------------------------
+# Load Environment Variables
+# -----------------------------
+load_dotenv()
+
+# -----------------------------
+# FastAPI App
+# -----------------------------
 app = FastAPI()
+
+# Create database tables
 Base.metadata.create_all(bind=engine)
 
+# -----------------------------
+# Security Configuration
+# -----------------------------
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
 
-SECRET_KEY = "change_this_to_a_long_random_secret_key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+)
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    raise ValueError("OPENAI_API_KEY is missing in .env")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY is missing in .env")
+
+# -----------------------------
+# JWT Token Creation
+# -----------------------------
 def create_access_token(data: dict):
     to_encode = data.copy()
 
@@ -89,6 +115,8 @@ food_items = [
     },
 ]
 
+class ChatRequest(BaseModel):
+    message: str
 
 @app.get("/")
 def home():
@@ -265,14 +293,14 @@ def get_ai_insights(db: Session = Depends(get_db)):
 
     insights.append(f"Total inventory items: {total_items}")
 
-    low_stock = [item.name for item in items if item.quantity < 10]
+    low_stock = [item.product_name for item in items if item.quantity < 10]
 
     if low_stock:
         insights.append(
             "Low stock items: " + ", ".join(low_stock)
         )
 
-    high_stock = [item.name for item in items if item.quantity > 100]
+    high_stock = [item.product_name for item in items if item.quantity > 100]
 
     if high_stock:
         insights.append(
@@ -282,3 +310,40 @@ def get_ai_insights(db: Session = Depends(get_db)):
     return {
         "insights": insights
     }
+
+@app.post("/chat")
+async def chat(request: ChatRequest, db: Session = Depends(get_db)):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+    "role": "system",
+    "content": f"""
+You are an AI assistant for a Food Inventory Management System.
+
+Current Inventory:
+
+{inventory}
+
+Answer questions using the inventory above.
+If the user asks about stock levels, use this inventory.
+""",
+},
+                {
+                    "role": "user",
+                    "content": request.message,
+                },
+            ],
+            temperature=0.7,
+            max_tokens=300,
+        )
+
+        return {
+            "reply": response.choices[0].message.content
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e)
+        }
