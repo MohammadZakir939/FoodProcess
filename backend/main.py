@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Query, Depends, HTTPException
+from fastapi import FastAPI, Query, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
@@ -16,6 +16,7 @@ from models import Inventory, User, Base
 # Load Environment Variables
 # -----------------------------
 load_dotenv()
+print("SECRET_KEY:", os.getenv("SECRET_KEY"))
 
 # -----------------------------
 # FastAPI App
@@ -122,10 +123,56 @@ class ChatRequest(BaseModel):
 def home():
     return {"message": "Food Process API is running"}
 
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+
+        return email
+
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+
+def get_current_user(
+    authorization: str = Header(None)
+):
+    if authorization is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization header missing"
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token format"
+        )
+
+    token = authorization.split(" ")[1]
+
+    return verify_token(token)
 
 # Reads from Supabase
 @app.get("/api/foods")
-def get_foods(db: Session = Depends(get_db)):
+def get_foods(
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     foods = db.query(Inventory).all()
 
     return [
@@ -224,14 +271,17 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
 
     return {"message": "Food item deleted successfully"}
 
-@app.post("/register")
+@app.post("/api/auth/register")
 def register(user: RegisterUser, db: Session = Depends(get_db)):
 
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == user.email).first()
 
     if existing_user:
-        return {"message": "Email already registered"}
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered"
+        )
 
     # Hash the password
     hashed_password = pwd_context.hash(user.password)
@@ -253,7 +303,7 @@ def register(user: RegisterUser, db: Session = Depends(get_db)):
         "email": new_user.email
     }
 
-@app.post("/login")
+@app.post("/api/auth/login")
 def login(user: LoginUser, db: Session = Depends(get_db)):
 
     db_user = db.query(User).filter(User.email == user.email).first()
@@ -313,6 +363,14 @@ def get_ai_insights(db: Session = Depends(get_db)):
 
 @app.post("/chat")
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
+    items = db.query(Inventory).all()
+
+    inventory = "\n".join(
+     [
+        f"{item.product_name} - Quantity: {item.quantity} - Unit: {item.unit}"
+        for item in items
+     ]
+    )
     try:
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
