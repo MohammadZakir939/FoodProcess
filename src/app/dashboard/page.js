@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { useSearchParams } from "next/navigation";
+
 
 const API = "https://foodprocess.onrender.com"; // change if deployed
 
 export default function Dashboard() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-
   const [activeTab, setActiveTab] = useState(
   searchParams.get("tab") || "inventory"
 );
@@ -47,7 +48,12 @@ const [batchStatus, setBatchStatus] = useState("Pending");
   const fetchFoods = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API}/api/foods`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/api/foods`, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
       const data = await res.json();
       setFoods(data);
     } catch (err) {
@@ -57,31 +63,55 @@ const [batchStatus, setBatchStatus] = useState("Pending");
     }
   };
 
- useEffect(() => {
-    fetchFoods();
-    fetch(`${API}/ai-insights`)
-      .then((res) => res.json())
-      .then((data) => {
-        setInsights(data.insights);
-      })
-      .catch((err) => console.log(err));
+  useEffect(() => {
+  const token = localStorage.getItem("token");
 
-}, []);
+  if (!token) {
+    router.push("/login");
+  }
+}, [router]);
+
+useEffect(() => {
+     fetchFoods();
+     const token = localStorage.getItem("token");
+
+     fetch(`${API}/ai-insights`, {
+         headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      setInsights(data.insights);
+    })
+    .catch((err) => console.log(err));
+
+}, []);   
+
+  const token =
+  typeof window !== "undefined"
+    ? localStorage.getItem("token")
+    : null;
 
   // ---------------- ADD INVENTORY ----------------
   const addFood = async () => {
     if (!form.name || !form.category || !form.quantity) return;
 
     try {
-     const res = await fetch(`${API}/api/foods`,   {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-  name: form.name,
-  category: form.category,
-  quantity: Number(form.quantity),
-})
-      });
+     const token = localStorage.getItem("token");
+
+const res = await fetch(`${API}/api/foods`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  },
+  body: JSON.stringify({
+    name: form.name,
+    category: form.category,
+    quantity: Number(form.quantity),
+  }),
+});
 
       if (res.ok) {
   const newItem = await res.json();
@@ -102,9 +132,14 @@ const [batchStatus, setBatchStatus] = useState("Pending");
   // ---------------- DELETE INVENTORY ----------------
   const deleteFood = async (id) => {
     try {
-      await fetch(`${API}/api/foods/${id}`,  {
-        method: "DELETE"
-      });
+      const token = localStorage.getItem("token");
+
+await fetch(`${API}/api/foods/${id}`, {
+  method: "DELETE",
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
       fetchFoods();
     } catch (err) {
       console.error(err);
@@ -480,20 +515,31 @@ const [batchStatus, setBatchStatus] = useState("Pending");
 
     <button
       className="bg-green-600 text-white px-6 py-2 rounded"
-      onClick={() => {
+      onClick={async () => {
+  if (!question) return;
 
-        if (!question) return;
+  const token = localStorage.getItem("token");
 
-        setAnswer(
-          "AI Recommendation:\n\n" +
-          "• Monitor low-stock items regularly.\n" +
-          "• Reduce overproduction.\n" +
-          "• Track supplier performance.\n" +
-          "• Improve quality checks.\n" +
-          "• Analyze inventory trends every week."
-        );
+  try {
+    const res = await fetch(`${API}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        message: question,
+      }),
+    });
 
-      }}
+    const data = await res.json();
+
+    setAnswer(data.reply);
+
+  } catch (err) {
+    setAnswer("Unable to contact AI service.");
+  }
+}}
     >
       Ask AI
     </button>

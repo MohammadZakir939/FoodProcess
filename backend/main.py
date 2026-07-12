@@ -6,8 +6,10 @@ from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from google import genai
 import os
-from openai import OpenAI
+
 
 from database import get_db, engine
 from models import Inventory, User, Base
@@ -25,6 +27,7 @@ app = FastAPI()
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+security = HTTPBearer()
 
 # -----------------------------
 # Security Configuration
@@ -40,12 +43,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 )
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY is missing in .env")
-
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY is missing in .env")
@@ -149,22 +149,9 @@ def verify_token(token: str):
 
 
 def get_current_user(
-    authorization: str = Header(None)
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    if authorization is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Authorization header missing"
-        )
-
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token format"
-        )
-
-    token = authorization.split(" ")[1]
-
+    token = credentials.credentials
     return verify_token(token)
 
 # Reads from Supabase
@@ -187,7 +174,11 @@ def get_foods(
 
 
 @app.get("/api/foods/search")
-def search_foods(q: str = Query(...), db: Session = Depends(get_db)):
+def search_foods(
+    q: str = Query(...),
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     foods = db.query(Inventory).filter(
         Inventory.product_name.ilike(f"%{q}%")
     ).all()
@@ -204,7 +195,11 @@ def search_foods(q: str = Query(...), db: Session = Depends(get_db)):
 
 
 @app.get("/api/foods/{food_id}")
-def get_food(food_id: int, db: Session = Depends(get_db)):
+def get_food(
+    food_id: int,
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     food = db.query(Inventory).filter(Inventory.id == food_id).first()
 
     if not food:
@@ -218,7 +213,11 @@ def get_food(food_id: int, db: Session = Depends(get_db)):
     }
 
 @app.post("/api/foods")
-def create_food(food: Food, db: Session = Depends(get_db)):
+def create_food(
+    food: Food,
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
 
     new_food = Inventory(
         product_name=food.name,
@@ -239,7 +238,12 @@ def create_food(food: Food, db: Session = Depends(get_db)):
 
 
 @app.put("/api/foods/{food_id}")
-def update_food(food_id: int, updated_food: Food, db: Session = Depends(get_db)):
+def update_food(
+    food_id: int,
+    updated_food: Food,
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     food = db.query(Inventory).filter(Inventory.id == food_id).first()
 
     if not food:
@@ -260,7 +264,11 @@ def update_food(food_id: int, updated_food: Food, db: Session = Depends(get_db))
     }
 
 @app.delete("/api/foods/{food_id}")
-def delete_food(food_id: int, db: Session = Depends(get_db)):
+def delete_food(
+    food_id: int,
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     food = db.query(Inventory).filter(Inventory.id == food_id).first()
 
     if not food:
@@ -330,7 +338,10 @@ def login(user: LoginUser, db: Session = Depends(get_db)):
 from datetime import datetime
 
 @app.get("/ai-insights")
-def get_ai_insights(db: Session = Depends(get_db)):
+def get_ai_insights(
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
 
     items = db.query(Inventory).all()
 
@@ -343,15 +354,22 @@ def get_ai_insights(db: Session = Depends(get_db)):
 
     insights.append(f"Total inventory items: {total_items}")
 
-    low_stock = [item.product_name for item in items if item.quantity < 10]
+    low_stock = [
+    item.product_name
+    for item in items
+    if item.quantity < 10
+]
 
     if low_stock:
         insights.append(
             "Low stock items: " + ", ".join(low_stock)
         )
 
-    high_stock = [item.product_name for item in items if item.quantity > 100]
-
+    high_stock = [
+    item.product_name
+    for item in items
+    if item.quantity > 100
+]
     if high_stock:
         insights.append(
             "High stock items: " + ", ".join(high_stock)
@@ -362,46 +380,63 @@ def get_ai_insights(db: Session = Depends(get_db)):
     }
 
 @app.post("/chat")
-async def chat(request: ChatRequest, db: Session = Depends(get_db)):
+async def chat(
+    request: ChatRequest,
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     items = db.query(Inventory).all()
 
-    inventory = "\n".join(
-     [
-        f"{item.product_name} - Quantity: {item.quantity} - Unit: {item.unit}"
-        for item in items
-     ]
-    )
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {
-    "role": "system",
-    "content": f"""
-You are an AI assistant for a Food Inventory Management System.
+    if not items:
+        inventory = "No inventory available."
+    else:
+        inventory = "\n".join(
+            [
+                f"- {item.product_name}: {item.quantity} {item.unit}"
+                for item in items
+            ]
+        )
+
+    prompt = f"""
+You are FoodProcess AI.
+
+You help warehouse managers manage inventory.
 
 Current Inventory:
 
 {inventory}
 
-Answer questions using the inventory above.
-If the user asks about stock levels, use this inventory.
-""",
-},
-                {
-                    "role": "user",
-                    "content": request.message,
-                },
-            ],
-            temperature=0.7,
-            max_tokens=300,
+Analyze the inventory and answer the user's question.
+
+Rules:
+- Mention product names.
+- Mention quantities.
+- Warn if quantity < 10.
+- Mention excess stock if quantity > 100.
+- Recommend reorder priorities.
+- Suggest inventory optimization.
+- Never invent products.
+- If the user asks unrelated questions, politely explain that you only assist with inventory management.
+
+User Question:
+{request.message}
+
+Provide:
+1. A direct answer.
+2. A recommendation (if applicable).
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
         )
+        return {"reply": response.text}
 
+    except Exception:
         return {
-            "reply": response.choices[0].message.content
-        }
-
-    except Exception as e:
-        return {
-            "error": str(e)
-        }
+            "reply": (
+                "AI service is temporarily unavailable. "
+                "Please try again later."
+        )
+    }
