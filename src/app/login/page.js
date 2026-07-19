@@ -24,7 +24,7 @@ export default function Login() {
 
   try {
     const response = await fetch(
-      "https://foodprocess.onrender.com/api/auth/login",
+      "https://foodprocess.onrender.com/login",
       {
         method: "POST",
         headers: {

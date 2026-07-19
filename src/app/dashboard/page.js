@@ -32,6 +32,9 @@ const [question, setQuestion] = useState("");
 const [answer, setAnswer] = useState("");
 const [insights, setInsights] = useState([]);
 
+const [aiLoading, setAiLoading] = useState(false);
+const [aiError, setAiError] = useState("");
+
 const [batchName, setBatchName] = useState("");
 const [batchQuantity, setBatchQuantity] = useState("");
 const [batchStatus, setBatchStatus] = useState("Pending");
@@ -513,36 +516,56 @@ await fetch(`${API}/api/foods/${id}`, {
       onChange={(e) => setQuestion(e.target.value)}
     />
 
-    <button
-      className="bg-green-600 text-white px-6 py-2 rounded"
-      onClick={async () => {
-  if (!question) return;
+   <button
+  disabled={aiLoading}
+  className="bg-green-600 text-white px-6 py-2 rounded"
+  onClick={async () => {
+    if (!question) return;
 
-  const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-  try {
-    const res = await fetch(`${API}/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        message: question,
-      }),
-    });
+    try {
+      setAiLoading(true);
+      setAiError("");
+      setAnswer("");
 
-    const data = await res.json();
+      const res = await fetch(`${API}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: question,
+        }),
+      });
 
-    setAnswer(data.reply);
+      const data = await res.json();
+      console.log("Response from backend:", data);
 
-  } catch (err) {
-    setAnswer("Unable to contact AI service.");
-  }
-}}
-    >
-      Ask AI
-    </button>
+      setAnswer(data.reply);
+
+      setAnswer(data.reply);
+
+    } catch (err) {
+      setAiError("Unable to contact AI service.");
+    } finally {
+      setAiLoading(false);
+    }
+  }}
+>
+  {aiLoading ? "🤖 FoodProcess AI is Thinking..." : "Ask AI"}
+</button>
+    {aiLoading && (
+  <div className="mt-6 border rounded-lg p-4 bg-yellow-100">
+    🤖 FoodProcess AI is analyzing your inventory...
+  </div>
+)}
+    {aiError && (
+  <div className="mt-6 border rounded-lg p-4 bg-red-100 text-red-700">
+    {aiError}
+  </div>
+)}
 
     {answer && (
       <div className="mt-6 border rounded-lg p-4 bg-green-50">

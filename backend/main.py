@@ -7,7 +7,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from google import genai
+from openai import OpenAI
 import os
 
 
@@ -43,8 +43,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 )
 
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
+client = OpenAI(
+    api_key=os.getenv("ZAI_API_KEY"),
+    base_url="https://integrate.api.nvidia.com/v1"
 )
 
 if not SECRET_KEY:
@@ -409,13 +410,13 @@ Current Inventory:
 Analyze the inventory and answer the user's question.
 
 Rules:
-- Mention product names.
-- Mention quantities.
-- Warn if quantity < 10.
-- Mention excess stock if quantity > 100.
-- Recommend reorder priorities.
-- Suggest inventory optimization.
-- Never invent products.
+- Only use the inventory provided.
+- Never invent products or quantities.
+- A product is LOW STOCK only if quantity is less than 10.
+- If quantity is exactly 10, do NOT call it low stock.
+- A product is HIGH STOCK only if quantity is greater than 100.
+- Mention product names and exact quantities.
+- If no products are low stock, clearly state that.
 - If the user asks unrelated questions, politely explain that you only assist with inventory management.
 
 User Question:
@@ -427,16 +428,31 @@ Provide:
 """
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
+        response = client.chat.completions.create(
+            model="z-ai/glm-5.2",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are FoodProcess AI."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.5,
+            max_tokens=500
         )
-        return {"reply": response.text}
 
-    except Exception:
         return {
-            "reply": (
-                "AI service is temporarily unavailable. "
-                "Please try again later."
-        )
-    }
+            "reply": response.choices[0].message.content
+        }
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+
+        return {
+            "reply": str(e)
+        }
